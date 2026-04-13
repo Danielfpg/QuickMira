@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+
+<VBox spacing="10" alignment="CENTER"
+      xmlns:fx="http://javafx.com/fxml"
+      fx:controller="com.quickmira.Controller.LoginController">
+
+    <Label text="QuickMira" style="-fx-font-size: 20;" />
+
+    <TextField fx:id="txtUsuario" promptText="Usuario"
+               maxWidth="250" minWidth="250" prefWidth="250"/>
+    <PasswordField fx:id="txtPassword" promptText="Contraseña"
+                   maxWidth="250" minWidth="250" prefWidth="250"/>
+
+    <Button text="Ingresar" onAction="#login"
+            style="-fx-background-color: #001F5B; -fx-text-fill: white;
+                   -fx-font-size: 14px; -fx-padding: 6 20 6 20;
+                   -fx-cursor: hand;"/>
+
+    <Label fx:id="lblMensaje"/>
+
+</VBox>
