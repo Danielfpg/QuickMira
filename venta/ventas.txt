@@ -1,0 +1,24 @@
+[,
+  {
+    "_id"    : { "$oid": "69e2775f0000000000000001" },
+    "nombre" : "a",
+    "precio" : 1,00,
+    "total"  : 1,
+    "imagen" : "C:\\Users\\sala7.FI-LABSISTEMAS.003\\IdeaProjects\\quickMira\\src\\main\\resources\\com\\quickmira\\images\\1776449375492.png",
+    "fecha"  : { "$date": "2026-04-17T13:09:35" }
+  },
+  {
+    "nombre" : "er",
+    "precio" : 100,00,
+    "total"  : 20,
+    "imagen" : "1776878235663.png",
+    "fecha"  : { "$date": "2026-04-22T12:17:15" }
+  },
+  {
+    "nombre" : "ta",
+    "precio" : 200,00,
+    "total"  : 40,
+    "imagen" : "1776878256016.png",
+    "fecha"  : { "$date": "2026-04-22T12:17:36" }
+  }
+]

@@ -1,0 +1,119 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.*?>
+<?import javafx.scene.image.*?>
+<?import javafx.scene.text.*?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.chart.*?>
+<?import javafx.scene.layout.*?>
+
+<BorderPane fx:id="rootPane" maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" prefHeight="600.0" prefWidth="900.0" style="-fx-background-color: #f4f6f9;" xmlns="http://javafx.com/javafx/8" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.quickmira.Controller.ControladorEstadisticas">
+
+    <top>
+        <HBox prefHeight="100.0" prefWidth="200.0" style="-fx-background-color: #2271b3;" BorderPane.alignment="CENTER">
+            <children>
+                <HBox prefHeight="100.0" prefWidth="280.0">
+                    <children>
+                        <ImageView fitHeight="80.0" fitWidth="80.0" pickOnBounds="true" preserveRatio="true">
+                            <image>
+                                <Image url="@../images/caja-del-paquete (1).png" />
+                            </image>
+                            <HBox.margin><Insets left="15.0" top="10.0"/></HBox.margin>
+                        </ImageView>
+                        <Label alignment="CENTER" prefHeight="100.0" text="QuicMira" textFill="WHITE">
+                            <font><Font name="System Bold" size="24.0" /></font>
+                            <padding><Insets left="10.0"/></padding>
+                        </Label>
+                    </children>
+                </HBox>
+                <Label alignment="CENTER" prefHeight="100.0" prefWidth="300.0" text="Operador: Daniel" textFill="WHITE">
+                    <font><Font size="18.0" /></font>
+                </Label>
+                <Region HBox.hgrow="ALWAYS" />
+                <AnchorPane prefHeight="100.0" prefWidth="200.0">
+                    <children>
+                        <ImageView fitHeight="43.0" fitWidth="67.0" layoutX="14.0" layoutY="29.0">
+                            <image>
+                                <Image url="@../images/user-icon-on-transparent-background-free-png.png" />
+                            </image>
+                        </ImageView>
+                        <Button fx:id="Clouse_sesion" layoutX="90.0" layoutY="38.0" mnemonicParsing="false" text="Cerrar Sesión" />
+                    </children>
+                </AnchorPane>
+            </children>
+        </HBox>
+    </top>
+
+    <left>
+        <VBox prefWidth="130.0" spacing="10" style="-fx-background-color: #ffffff; -fx-border-color: #dce1e7; -fx-border-width: 0 1 0 0;" BorderPane.alignment="CENTER">
+            <padding><Insets top="20.0" left="5.0" right="5.0"/></padding>
+            <children>
+                <Button fx:id="inventory" alignment="CENTER_LEFT" mnemonicParsing="false" prefHeight="45.0" prefWidth="120.0" text="Inventory">
+                    <graphic>
+                        <ImageView fitHeight="25.0" fitWidth="25.0"><image><Image url="@../images/caja-del-paquete.png" /></image></ImageView>
+                    </graphic>
+                </Button>
+                <Button fx:id="sell" alignment="CENTER_LEFT" mnemonicParsing="false" prefHeight="45.0" prefWidth="120.0" text="Sell">
+                    <graphic>
+                        <ImageView fitHeight="25.0" fitWidth="25.0"><image><Image url="@../images/camara.png" /></image></ImageView>
+                    </graphic>
+                </Button>
+                <Button fx:id="stadistics" alignment="CENTER_LEFT" mnemonicParsing="false" prefHeight="45.0" prefWidth="120.0" style="-fx-background-color: #15c0a9;" text="Stadistics" textFill="WHITE">
+                    <graphic>
+                        <ImageView fitHeight="25.0" fitWidth="25.0"><image><Image url="@../images/grafico.png" /></image></ImageView>
+                    </graphic>
+                    <font><Font name="System Bold" size="12.0" /></font>
+                </Button>
+            </children>
+        </VBox>
+    </left>
+
+    <center>
+        <ScrollPane fitToWidth="true" style="-fx-background-color: transparent;">
+            <content>
+                <VBox spacing="20" style="-fx-padding: 20;">
+                    <children>
+                        <Label text="Análisis de Inventario">
+                            <font><Font name="System Bold" size="20.0"/></font>
+                        </Label>
+
+                        <VBox style="-fx-background-color: white; -fx-padding: 15; -fx-background-radius: 10; -fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.1), 10, 0, 0, 0);">
+                            <Label text="Productos más vendidos (Stock)">
+                                <font><Font name="System Bold" size="14.0"/></font>
+                            </Label>
+                            <BarChart fx:id="graficaVentas" animated="true" legendVisible="false" prefHeight="250.0">
+                                <xAxis><CategoryAxis label="Producto"/></xAxis>
+                                <yAxis><NumberAxis label="Unidades" /></yAxis>
+                            </BarChart>
+                        </VBox>
+
+                        <VBox style="-fx-background-color: white; -fx-padding: 15; -fx-background-radius: 10; -fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.1), 10, 0, 0, 0);">
+                            <Label text="Listado de productos con mayor stock">
+                                <font><Font name="System Bold" size="14.0"/></font>
+                            </Label>
+                            <TableView fx:id="tablaTop5" prefHeight="200.0">
+                                <columns>
+                                    <TableColumn fx:id="colRanking" text="Pos" prefWidth="50"/>
+                                    <TableColumn fx:id="colNombre" text="Nombre" prefWidth="250"/>
+                                    <TableColumn fx:id="colCantidadVendida" text="Cant. Stock" prefWidth="120"/>
+                                    <TableColumn fx:id="colPrecio" text="Precio Unit." prefWidth="120"/>
+                                    <TableColumn fx:id="colIngresoTotal" text="Valor Total" prefWidth="150"/>
+                                </columns>
+                            </TableView>
+                        </VBox>
+                    </children>
+                </VBox>
+            </content>
+        </ScrollPane>
+    </center>
+
+    <bottom>
+        <HBox spacing="40" style="-fx-padding: 10; -fx-background-color: #eef1f5; -fx-border-color: #dce1e7; -fx-border-width: 1 0 0 0;">
+            <children>
+                <Label fx:id="lblTotalVentas" text="Valor total inventario: –" />
+                <Label fx:id="lblProductosVendidos" text="Total de productos: –" />
+                <Label fx:id="lblTicketPromedio" text="Stock promedio: –" />
+            </children>
+        </HBox>
+    </bottom>
+</BorderPane>
