@@ -1,5 +1,6 @@
 package com.quickmira.Controller;
 
+import com.mongodb.client.MongoDatabase;
 import com.quickmira.Database.Conexion;
 import javafx.beans.property.*;
 import javafx.collections.*;
@@ -10,6 +11,7 @@ import javafx.scene.Scene;
 import javafx.scene.chart.*;
 import javafx.scene.control.*;
 import javafx.stage.Stage;
+import org.bson.Document;
 
 import java.io.IOException;
 import java.nio.file.*;
@@ -18,19 +20,15 @@ import java.util.*;
 
 public class ControladorEstadisticas {
 
-    // Componentes de la UI (IDs del FXML)
     @FXML private BarChart<String, Number> graficaVentas;
     @FXML private TableView<FilaProducto> tablaTop5;
     @FXML private TableColumn<FilaProducto, Integer> colRanking;
-    @FXML private TableColumn<FilaProducto, String> colNombre;
+    @FXML private TableColumn<FilaProducto, String>  colNombre;
     @FXML private TableColumn<FilaProducto, Integer> colCantidadVendida;
-    @FXML private TableColumn<FilaProducto, String> colPrecio;
-    @FXML private TableColumn<FilaProducto, String> colIngresoTotal;
+    @FXML private TableColumn<FilaProducto, String>  colPrecio;
+    @FXML private TableColumn<FilaProducto, String>  colIngresoTotal;
 
-    @FXML private Label lblTotalVentas;
-    @FXML private Label lblProductosVendidos;
-    @FXML private Label lblTicketPromedio;
-
+    @FXML private Label lblTotalVentas, lblProductosVendidos, lblTicketPromedio;
     @FXML private Button inventory, sell, Clouse_sesion, stadistics;
 
     @FXML
@@ -38,26 +36,18 @@ public class ControladorEstadisticas {
         configurarNavegacion();
         configurarColumnas();
 
-        // 1. MAPA para consolidar: Clave = Nombre en minúsculas
         Map<String, FilaProducto> consolidado = new HashMap<>();
 
-        // 2. Cargar datos de ambas fuentes
-        List<FilaProducto> desdeMySQL = cargarDesdeMySQL();
+        // Cargar según el modo activo
+        List<FilaProducto> desdeBD  = cargarDesdeBD();
         List<FilaProducto> desdeTxt = cargarDesdeTxt();
 
-        // 3. Unificar datos sumando totales si el nombre se repite
-        for (FilaProducto p : desdeMySQL) {
-            agregarOConsolidar(consolidado, p);
-        }
-        for (FilaProducto p : desdeTxt) {
-            agregarOConsolidar(consolidado, p);
-        }
+        for (FilaProducto p : desdeBD)  agregarOConsolidar(consolidado, p);
+        for (FilaProducto p : desdeTxt) agregarOConsolidar(consolidado, p);
 
-        // 4. Convertir a lista y ordenar por mayor cantidad
         List<FilaProducto> listaFinal = new ArrayList<>(consolidado.values());
         listaFinal.sort((a, b) -> Integer.compare(b.getTotal(), a.getTotal()));
 
-        // 5. Poblar la interfaz
         if (!listaFinal.isEmpty()) {
             llenarGrafica(listaFinal);
             llenarTabla(listaFinal);
@@ -69,12 +59,10 @@ public class ControladorEstadisticas {
         String clave = nuevo.getNombre().toLowerCase().trim();
         if (mapa.containsKey(clave)) {
             FilaProducto existente = mapa.get(clave);
-            int nuevoTotal = existente.getTotal() + nuevo.getTotal();
-            // Actualizamos el objeto existente con la nueva suma
             mapa.put(clave, new FilaProducto(
                     existente.getNombre(),
                     existente.getPrecio(),
-                    nuevoTotal,
+                    existente.getTotal() + nuevo.getTotal(),
                     "Mixto"
             ));
         } else {
@@ -82,43 +70,60 @@ public class ControladorEstadisticas {
         }
     }
 
-    // CARGA DE DATOS
-    private List<FilaProducto> cargarDesdeMySQL() {
+    // ── Carga desde la BD activa ───────────────────────────────────────────
+    private List<FilaProducto> cargarDesdeBD() {
+        if (Conexion.isUsarMongo()) return cargarDesdeMongo();
+        return cargarDesdeJDBC();
+    }
+
+    private List<FilaProducto> cargarDesdeJDBC() {
         List<FilaProducto> lista = new ArrayList<>();
+        String fuente = Conexion.isUsarMySQL() ? "MySQL" : "SQLite";
         Connection con = Conexion.getConexion();
         if (con == null) return lista;
         try (Statement st = con.createStatement();
              ResultSet rs = st.executeQuery("SELECT nombre, precio, total FROM producto")) {
             while (rs.next()) {
-                lista.add(new FilaProducto(rs.getString("nombre"), rs.getDouble("precio"), rs.getInt("total"), "MySQL"));
+                lista.add(new FilaProducto(rs.getString("nombre"), rs.getDouble("precio"), rs.getInt("total"), fuente));
             }
         } catch (SQLException e) {
-            System.out.println("❌ Error MySQL: " + e.getMessage());
+            System.out.println("❌ Error " + fuente + ": " + e.getMessage());
+        }
+        return lista;
+    }
+
+    private List<FilaProducto> cargarDesdeMongo() {
+        List<FilaProducto> lista = new ArrayList<>();
+        MongoDatabase db = Conexion.getMongoDatabase();
+        if (db == null) return lista;
+        try {
+            for (Document doc : db.getCollection("producto").find()) {
+                lista.add(new FilaProducto(
+                        doc.getString("nombre"),
+                        doc.getDouble("precio") != null ? doc.getDouble("precio") : 0.0,
+                        doc.getInteger("total")  != null ? doc.getInteger("total")  : 0,
+                        "MongoDB"
+                ));
+            }
+        } catch (Exception e) {
+            System.out.println("❌ Error MongoDB: " + e.getMessage());
         }
         return lista;
     }
 
     private List<FilaProducto> cargarDesdeTxt() {
         List<FilaProducto> lista = new ArrayList<>();
-        // Problema 3: Ruta absoluta del proyecto
         Path archivo = Paths.get(System.getProperty("user.dir"), "venta", "ventas.txt");
-
-        if (!Files.exists(archivo)) {
-            System.out.println("⚠️ Archivo no encontrado en: " + archivo.toAbsolutePath());
-            return lista;
-        }
+        if (!Files.exists(archivo)) return lista;
 
         try {
             String contenido = Files.readString(archivo);
             String[] bloques = contenido.split("\\}");
-
             for (String bloque : bloques) {
                 if (!bloque.contains("\"nombre\"")) continue;
-
-                String nombre = extraerValor(bloque, "nombre");
+                String nombre  = extraerValor(bloque, "nombre");
                 String precioS = extraerValor(bloque, "precio");
-                String totalS = extraerValor(bloque, "total");
-
+                String totalS  = extraerValor(bloque, "total");
                 if (nombre != null && precioS != null && totalS != null) {
                     lista.add(new FilaProducto(
                             nombre.trim(),
@@ -149,14 +154,12 @@ public class ControladorEstadisticas {
         }
     }
 
-    // CONFIGURACIÓN DE UI
+    // ── Configuración de UI ────────────────────────────────────────────────
     private void configurarColumnas() {
         colRanking.setCellFactory(column -> new TableCell<>() {
-            @Override
-            protected void updateItem(Integer item, boolean empty) {
+            @Override protected void updateItem(Integer item, boolean empty) {
                 super.updateItem(item, empty);
-                if (empty) setText(null);
-                else setText(String.valueOf(getIndex() + 1));
+                setText(empty ? null : String.valueOf(getIndex() + 1));
             }
         });
 
@@ -166,13 +169,15 @@ public class ControladorEstadisticas {
         colIngresoTotal.setCellValueFactory(c -> new SimpleStringProperty(String.format("$%,.0f", c.getValue().getPrecio() * c.getValue().getTotal())));
 
         tablaTop5.setRowFactory(tv -> new TableRow<>() {
-            @Override
-            protected void updateItem(FilaProducto item, boolean empty) {
+            @Override protected void updateItem(FilaProducto item, boolean empty) {
                 super.updateItem(item, empty);
-                if (item == null || empty) setStyle("");
-                else if (item.getFuente().equals("MySQL")) setStyle("-fx-background-color: #f0f7ff;");
-                else if (item.getFuente().equals("TXT")) setStyle("-fx-background-color: #f0fffb;");
-                else setStyle("-fx-background-color: #fffaf0;"); // Mixto
+                if (item == null || empty) { setStyle(""); return; }
+                setStyle(switch (item.getFuente()) {
+                    case "MySQL"   -> "-fx-background-color: #f0f7ff;";
+                    case "SQLite"  -> "-fx-background-color: #f0fffb;";
+                    case "MongoDB" -> "-fx-background-color: #fff5f0;";
+                    default        -> "-fx-background-color: #fffaf0;";
+                });
             }
         });
     }
@@ -181,16 +186,9 @@ public class ControladorEstadisticas {
         graficaVentas.getData().clear();
         XYChart.Series<String, Number> serie = new XYChart.Series<>();
         serie.setName("Stock Disponible");
-
-        // Top 6 para que la gráfica se vea limpia
-        datos.stream().limit(6).forEach(p ->
-                serie.getData().add(new XYChart.Data<>(p.getNombre(), p.getTotal()))
-        );
-
+        datos.stream().limit(6).forEach(p -> serie.getData().add(new XYChart.Data<>(p.getNombre(), p.getTotal())));
         graficaVentas.getData().add(serie);
-
-        CategoryAxis xAxis = (CategoryAxis) graficaVentas.getXAxis();
-        xAxis.setGapStartAndEnd(true);
+        ((CategoryAxis) graficaVentas.getXAxis()).setGapStartAndEnd(true);
         graficaVentas.setBarGap(10);
         graficaVentas.setCategoryGap(50);
     }
@@ -200,44 +198,39 @@ public class ControladorEstadisticas {
     }
 
     private void actualizarFooter(List<FilaProducto> datos) {
-        int totalProd = datos.size();
-        int unidadesTotal = datos.stream().mapToInt(FilaProducto::getTotal).sum();
-        double valorInventario = datos.stream().mapToDouble(p -> p.getPrecio() * p.getTotal()).sum();
-
+        int totalProd    = datos.size();
+        int unidades     = datos.stream().mapToInt(FilaProducto::getTotal).sum();
+        double valor     = datos.stream().mapToDouble(p -> p.getPrecio() * p.getTotal()).sum();
         lblProductosVendidos.setText("Total productos: " + totalProd);
-        lblTicketPromedio.setText("Unidades totales: " + unidadesTotal);
-        lblTotalVentas.setText(String.format("Valor inventario: $%,.0f", valorInventario));
+        lblTicketPromedio.setText("Unidades totales: " + unidades);
+        lblTotalVentas.setText(String.format("Valor inventario: $%,.0f", valor));
     }
 
     private void configurarNavegacion() {
-        if (sell != null) sell.setOnAction(e -> navegarA("/com/quickmira/ui/vista.fxml", sell));
+        if (sell      != null) sell.setOnAction(e -> navegarA("/com/quickmira/ui/vista.fxml", sell));
         if (inventory != null) inventory.setOnAction(e -> navegarA("/com/quickmira/ui/inventory-view.fxml", inventory));
-        if (Clouse_sesion != null) Clouse_sesion.setOnAction(e -> {
-            Stage stage = (Stage) Clouse_sesion.getScene().getWindow();
-            stage.close();
-        });
+        if (Clouse_sesion != null) Clouse_sesion.setOnAction(e -> ((Stage) Clouse_sesion.getScene().getWindow()).close());
     }
 
     private void navegarA(String fxml, Button origen) {
         try {
             Parent root = FXMLLoader.load(getClass().getResource(fxml));
-            Stage stage = (Stage) origen.getScene().getWindow();
-            stage.setScene(new Scene(root));
+            ((Stage) origen.getScene().getWindow()).setScene(new Scene(root));
         } catch (IOException e) { e.printStackTrace(); }
     }
 
+    // ── FilaProducto ──────────────────────────────────────────────────────
     public static class FilaProducto {
-        private final String nombre;
+        private final String nombre, fuente;
         private final double precio;
-        private final int total;
-        private final String fuente;
+        private final int    total;
 
         public FilaProducto(String nombre, double precio, int total, String fuente) {
             this.nombre = nombre; this.precio = precio; this.total = total; this.fuente = fuente;
         }
         public String getNombre() { return nombre; }
         public double getPrecio() { return precio; }
-        public int getTotal() { return total; }
+        public int    getTotal()  { return total; }
         public String getFuente() { return fuente; }
     }
 }

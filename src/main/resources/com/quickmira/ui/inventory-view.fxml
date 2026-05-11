@@ -116,6 +116,11 @@
                                       mnemonicParsing="false"
                                       text="🐬  MySQL"
                                       style="-fx-background-color: #cccccc; -fx-text-fill: #333333;" />
+                        <!-- ToggleButton MongoDB -->
+                        <ToggleButton fx:id="btnMongoDB"
+                                      mnemonicParsing="false"
+                                      text="🍃  MongoDB"
+                                      style="-fx-background-color: #cccccc; -fx-text-fill: #333333;" />
                         <!-- Label que muestra BD activa -->
                         <Label fx:id="labelBDActiva"
                                text="BD activa: SQLite"

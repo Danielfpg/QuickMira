@@ -20,5 +20,12 @@
     "total"  : 40,
     "imagen" : "1776878256016.png",
     "fecha"  : { "$date": "2026-04-22T12:17:36" }
+  },
+  {
+    "nombre" : "drivers",
+    "precio" : 1,00,
+    "total"  : 2,
+    "imagen" : "1778259631803.png",
+    "fecha"  : { "$date": "2026-05-08T12:00:31" }
   }
 ]
