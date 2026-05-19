@@ -12,6 +12,10 @@ import java.nio.file.*;
 import java.sql.*;
 import java.util.regex.*;
 
+/**
+ * Clase encargada de la persistencia y carga masiva de productos.
+ * Integra soporte para SQLite, MySQL y MongoDB con sistema de backups.
+ */
 public class CargarProductos {
 
     // ═════════════════════════════════════════════════════════════════════════
@@ -19,10 +23,8 @@ public class CargarProductos {
     // ═════════════════════════════════════════════════════════════════════════
     public static void crearTablaProducto() {
         if (Conexion.isUsarMongo()) {
-            // MongoDB crea la colección automáticamente al insertar; no hace falta nada
             MongoDatabase db = Conexion.getMongoDatabase();
             if (db != null) {
-                // Asegurar que la colección exista
                 boolean existe = false;
                 for (String nombre : db.listCollectionNames()) {
                     if (nombre.equals("producto")) { existe = true; break; }
@@ -51,11 +53,9 @@ public class CargarProductos {
 
         String sql = Conexion.isUsarMySQL() ? sqlMySQL : sqlSQLite;
 
-        try {
-            Connection con = Conexion.getConexion();
-            Statement stmt = con.createStatement();
+        try (Connection con = Conexion.getConexion();
+             Statement stmt = con.createStatement()) {
             stmt.execute(sql);
-            stmt.close();
             System.out.println("✅ Tabla 'producto' lista.");
         } catch (SQLException e) {
             System.out.println("❌ Error al crear tabla: " + e.getMessage());
@@ -63,69 +63,135 @@ public class CargarProductos {
     }
 
     // ═════════════════════════════════════════════════════════════════════════
-    //  ELIMINAR PRODUCTO
+    //  ELIMINAR PRODUCTO (CON BACKUP Y LIMPIEZA DE TXT)
     // ═════════════════════════════════════════════════════════════════════════
     public static void eliminarProducto(String nombre) {
-        if (Conexion.isUsarMongo()) {
-            MongoDatabase db = Conexion.getMongoDatabase();
-            if (db == null) return;
-            db.getCollection("producto").deleteOne(Filters.eq("nombre", nombre));
-            System.out.println("✅ Producto eliminado de MongoDB: " + nombre);
-            return;
+        // 1. Eliminar del archivo TXT primero
+        eliminarDeArchivo(nombre);
+
+        // 2. Si es MySQL, respaldamos en la colección 'backups' de MongoDB
+        if (Conexion.isUsarMySQL()) {
+            respaldarEnMongo(nombre);
         }
 
-        String sql = "DELETE FROM producto WHERE nombre = ?";
+        // 3. Eliminar de la base de datos activa
+        if (Conexion.isUsarMongo()) {
+            MongoDatabase db = Conexion.getMongoDatabase();
+            if (db != null) {
+                db.getCollection("producto").deleteOne(Filters.eq("nombre", nombre));
+                System.out.println("✅ Producto eliminado de MongoDB.");
+            }
+        } else {
+            String sql = "DELETE FROM producto WHERE nombre = ?";
+            try (Connection con = Conexion.getConexion();
+                 PreparedStatement ps = con.prepareStatement(sql)) {
+                ps.setString(1, nombre);
+                int filas = ps.executeUpdate();
+                if (filas > 0) System.out.println("✅ Producto '" + nombre + "' eliminado de la BD.");
+            } catch (SQLException e) {
+                System.out.println("❌ Error SQL al eliminar: " + e.getMessage());
+            }
+        }
+    }
+
+    /**
+     * Limpia el archivo ventas.txt eliminando el bloque del producto.
+     */
+    private static void eliminarDeArchivo(String nombreProducto) {
+        String rutaArchivo = "venta/ventas.txt";
+        try {
+            Path path = Paths.get(rutaArchivo);
+            if (!Files.exists(path)) return;
+
+            String contenido = Files.readString(path);
+
+            // Regex ultra-flexible para capturar el objeto JSON completo que contenga el nombre
+            // Explicación: Busca '{', luego cualquier cosa que no sea '}' que incluya "nombre" : "valor"
+            String regex = "\\s*\\{[^{}]*?\"nombre\"\\s*:\\s*\"" + Pattern.quote(nombreProducto) + "\"[^{}]*?\\}(,)?";
+
+            Pattern pattern = Pattern.compile(regex, Pattern.DOTALL);
+            Matcher matcher = pattern.matcher(contenido);
+
+            if (matcher.find()) {
+                String nuevoContenido = matcher.replaceFirst("");
+
+                // --- LIMPIEZA DE ESTRUCTURA JSON ---
+                // 1. Si quedó una coma justo antes del cierre del array: [, {..}, ] -> [, {..}]
+                nuevoContenido = nuevoContenido.replaceAll(",\\s*]", "\n]");
+                // 2. Si el array quedó vacío con una coma: [ , ] -> [ ]
+                nuevoContenido = nuevoContenido.replaceAll("\\[\\s*,", "[");
+                // 3. Eliminar posibles comas dobles si estaban en el medio
+                nuevoContenido = nuevoContenido.replaceAll(",\\s*,", ",");
+
+                Files.writeString(path, nuevoContenido);
+                System.out.println("🗑️ '" + nombreProducto + "' borrado físicamente de ventas.txt");
+            } else {
+                System.out.println("⚠️ No se encontró '" + nombreProducto + "' en el archivo de texto.");
+            }
+        } catch (IOException e) {
+            System.err.println("❌ Error al procesar ventas.txt: " + e.getMessage());
+        }
+    }
+
+    private static void respaldarEnMongo(String nombre) {
+        String sql = "SELECT * FROM producto WHERE nombre = ?";
         try {
             Connection con = Conexion.getConexion();
-            PreparedStatement ps = con.prepareStatement(sql);
-            ps.setString(1, nombre);
-            ps.executeUpdate();
-            ps.close();
-            System.out.println("✅ Producto eliminado de BD: " + nombre);
-        } catch (SQLException e) {
-            System.out.println("❌ Error al eliminar de BD: " + e.getMessage());
+            if (con == null) return;
+            try (PreparedStatement ps = con.prepareStatement(sql)) {
+                ps.setString(1, nombre);
+                try (ResultSet rs = ps.executeQuery()) {
+                    if (rs.next()) {
+                        MongoDatabase db = Conexion.getMongoDatabase();
+                        if (db != null) {
+                            Document backup = new Document("nombre", rs.getString("nombre"))
+                                    .append("precio", rs.getDouble("precio"))
+                                    .append("total", rs.getInt("total"))
+                                    .append("imagen", rs.getString("imagen"))
+                                    .append("fecha_eliminacion", new java.util.Date())
+                                    .append("origen_sistema", "MySQL_Backup");
+                            db.getCollection("backups").insertOne(backup);
+                            System.out.println("📥 Backup guardado en MongoDB.");
+                        }
+                    }
+                }
+            }
+        } catch (Exception e) {
+            System.err.println("⚠️ Error creando respaldo: " + e.getMessage());
         }
     }
 
     // ═════════════════════════════════════════════════════════════════════════
-    //  ACTUALIZAR STOCK
+    //  ACTUALIZAR STOCK e INSERTAR INDIVIDUAL
     // ═════════════════════════════════════════════════════════════════════════
     public static void actualizarStock(String nombre, int nuevoTotal) {
         if (Conexion.isUsarMongo()) {
             MongoDatabase db = Conexion.getMongoDatabase();
-            if (db == null) return;
-            db.getCollection("producto").updateOne(
-                    Filters.eq("nombre", nombre),
-                    Updates.set("total", nuevoTotal)
-            );
-            System.out.println("✅ Stock actualizado en MongoDB: " + nombre);
+            if (db != null) {
+                db.getCollection("producto").updateOne(
+                        Filters.eq("nombre", nombre),
+                        Updates.set("total", nuevoTotal)
+                );
+            }
             return;
         }
 
         String sql = "UPDATE producto SET total = ? WHERE nombre = ?";
-        try {
-            Connection con = Conexion.getConexion();
-            PreparedStatement ps = con.prepareStatement(sql);
+        try (Connection con = Conexion.getConexion();
+             PreparedStatement ps = con.prepareStatement(sql)) {
             ps.setInt(1, nuevoTotal);
             ps.setString(2, nombre);
             ps.executeUpdate();
-            ps.close();
-            System.out.println("✅ Stock actualizado en BD: " + nombre);
         } catch (SQLException e) {
             System.out.println("❌ Error al actualizar stock: " + e.getMessage());
         }
     }
 
-    // ═════════════════════════════════════════════════════════════════════════
-    //  INSERTAR INDIVIDUAL
-    // ═════════════════════════════════════════════════════════════════════════
     public static void insertarProducto(String nombre, double precio, int total, String imagen) {
         if (Conexion.isUsarMongo()) {
             MongoDatabase db = Conexion.getMongoDatabase();
             if (db == null) return;
-            MongoCollection<Document> col = db.getCollection("producto");
-            // Upsert: inserta si no existe, no modifica si ya existe
-            col.updateOne(
+            db.getCollection("producto").updateOne(
                     Filters.eq("nombre", nombre),
                     Updates.combine(
                             Updates.setOnInsert("nombre", nombre),
@@ -142,15 +208,13 @@ public class CargarProductos {
                 ? "INSERT IGNORE INTO producto (nombre, precio, total, imagen) VALUES (?, ?, ?, ?)"
                 : "INSERT OR IGNORE INTO producto (nombre, precio, total, imagen) VALUES (?, ?, ?, ?)";
 
-        try {
-            Connection con = Conexion.getConexion();
-            PreparedStatement ps = con.prepareStatement(sql);
+        try (Connection con = Conexion.getConexion();
+             PreparedStatement ps = con.prepareStatement(sql)) {
             ps.setString(1, nombre);
             ps.setDouble(2, precio);
             ps.setInt(3, total);
             ps.setString(4, imagen);
             ps.executeUpdate();
-            ps.close();
         } catch (SQLException e) {
             System.out.println("❌ Error SQL al insertar: " + e.getMessage());
         }
@@ -181,7 +245,6 @@ public class CargarProductos {
         String[] fragmentos = contenido.split("\"nombre\"");
         int cargados = 0;
 
-        // ── MongoDB ──────────────────────────────────────────────────────────
         if (Conexion.isUsarMongo()) {
             MongoDatabase db = Conexion.getMongoDatabase();
             if (db == null) return;
@@ -200,16 +263,12 @@ public class CargarProductos {
                         String rutaFull = mImagen.group(1).replace("\\\\", "/");
                         imagen = Paths.get(rutaFull).getFileName().toString();
                     }
-                    String nombre = mNombre.group(1);
-                    double precio = Double.parseDouble(mPrecio.group(1));
-                    int    total  = Integer.parseInt(mTotal.group(1));
-
                     col.updateOne(
-                            Filters.eq("nombre", nombre),
+                            Filters.eq("nombre", mNombre.group(1)),
                             Updates.combine(
-                                    Updates.setOnInsert("nombre", nombre),
-                                    Updates.setOnInsert("precio", precio),
-                                    Updates.setOnInsert("total",  total),
+                                    Updates.setOnInsert("nombre", mNombre.group(1)),
+                                    Updates.setOnInsert("precio", Double.parseDouble(mPrecio.group(1))),
+                                    Updates.setOnInsert("total",  Integer.parseInt(mTotal.group(1))),
                                     Updates.setOnInsert("imagen", imagen)
                             ),
                             new UpdateOptions().upsert(true)
@@ -217,17 +276,14 @@ public class CargarProductos {
                     cargados++;
                 }
             }
-            System.out.println("🚀 Carga masiva MongoDB exitosa. Items: " + cargados);
             return;
         }
 
-        // ── JDBC (MySQL / SQLite) ─────────────────────────────────────────────
         String sql = Conexion.isUsarMySQL()
                 ? "INSERT IGNORE INTO producto (nombre, precio, total, imagen) VALUES (?, ?, ?, ?)"
                 : "INSERT OR IGNORE INTO producto (nombre, precio, total, imagen) VALUES (?, ?, ?, ?)";
 
-        try {
-            Connection con = Conexion.getConexion();
+        try (Connection con = Conexion.getConexion()) {
             if (!Conexion.isUsarMySQL()) con.setAutoCommit(false);
 
             try (PreparedStatement ps = con.prepareStatement(sql)) {
@@ -253,13 +309,7 @@ public class CargarProductos {
                     }
                 }
             }
-
-            if (!Conexion.isUsarMySQL()) {
-                con.commit();
-                con.setAutoCommit(true);
-            }
-            System.out.println("🚀 Carga masiva exitosa. Items: " + cargados);
-
+            if (!Conexion.isUsarMySQL()) con.commit();
         } catch (SQLException e) {
             System.out.println("❌ Error crítico en carga: " + e.getMessage());
         }

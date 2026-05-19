@@ -19,7 +19,7 @@ import java.sql.SQLException;
 public class Conexion {
 
     // ── MySQL ────────────────────────────────────────────────────────────────
-    private static final String MYSQL_URL  = "jdbc:mysql://172.30.16.165:3306/quickmira";
+    private static final String MYSQL_URL  = "jdbc:mysql://172.30.16.104:3306/quickmira";
     private static final String MYSQL_USER = "dfparedes11";
     private static final String MYSQL_PASS = "67001411";
 
@@ -28,7 +28,7 @@ public class Conexion {
 
     // ── MongoDB ──────────────────────────────────────────────────────────────
     // ⚠️  Cambia estos valores por la IP/puerto real del servidor de la universidad
-    private static final String MONGO_HOST = "172.30.16.165";   // ← IP del servidor
+    private static final String MONGO_HOST = "172.30.16.104";   // ← IP del servidor
     private static final int    MONGO_PORT = 27017;            // ← Puerto (default 27017)
     private static final String MONGO_DB   = "quickmira";      // ← Nombre de la base de datos
 
@@ -99,19 +99,16 @@ public class Conexion {
      * Retorna null si el modo activo no es MongoDB.
      */
     public static MongoDatabase getMongoDatabase() {
-        if (modoActivo != MODO_MONGODB) return null;
-
+        // Eliminamos la línea: if (modoActivo != MODO_MONGODB) return null;
         try {
             if (mongoClient == null) {
                 String uri = "mongodb://" + MONGO_HOST + ":" + MONGO_PORT;
                 mongoClient   = MongoClients.create(uri);
                 mongoDatabase = mongoClient.getDatabase(MONGO_DB);
-                System.out.println("✅ Conexión establecida con MongoDB en " + uri);
+                System.out.println("✅ Conexión establecida con MongoDB para operaciones internas");
             }
         } catch (Exception e) {
             System.err.println("❌ Error al conectar con MongoDB: " + e.getMessage());
-            mongoClient   = null;
-            mongoDatabase = null;
         }
         return mongoDatabase;
     }
