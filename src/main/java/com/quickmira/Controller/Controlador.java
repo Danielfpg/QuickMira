@@ -47,13 +47,22 @@ public class Controlador {
 
         sell.setStyle("-fx-background-color: #15c0a9;");
 
-        // Configuración de botones
         inventory.setOnAction(e -> navegarA("ui/inventory-view.fxml", inventory));
         stadistics.setOnAction(e -> navegarA("ui/estadisticas-view.fxml", stadistics));
         Clouse_sesion.setOnAction(e -> cerrarSesion());
 
+        // ── Validación en tiempo real del campo nombre ──
+        name.textProperty().addListener((obs, oldValue, newValue) -> {
+            if (!newValue.matches("^[a-zA-ZáéíóúÁÉÍÓÚñÑ\\s]*$")) {
+                alerta("El nombre solo puede contener letras y espacios.");
+                // Elimina cualquier carácter inválido automáticamente
+                name.setText(newValue.replaceAll("[^a-zA-ZáéíóúÁÉÍÓÚñÑ\\s]", ""));
+            }
+        });
+
         actualizarFooter();
     }
+
 
     private void cargarProductosDesdeArchivo() {
         listaProductos.clear();
@@ -99,7 +108,7 @@ public class Controlador {
 
     @FXML
     private void handleAgregar(ActionEvent event) {
-        // Validaciones
+        // Validaciones de UI
         if (name.getText().isBlank() || cost.getText().isBlank() || whole.getText().isBlank()) {
             alerta("Todos los campos son obligatorios.");
             return;
@@ -111,27 +120,38 @@ public class Controlador {
 
         try {
             String nombre = name.getText().trim();
-            double precio = Double.parseDouble(cost.getText().trim());
+            // Reemplazamos comas por puntos antes de parsear para evitar excepciones de formato regional
+            double precio = Double.parseDouble(cost.getText().trim().replace(",", "."));
             int total = Integer.parseInt(whole.getText().trim());
 
-            // 1. Guardar imagen y obtener solo el nombre del archivo
+            if (precio < 0 || total < 0) {
+                alerta("El precio y la cantidad deben ser valores positivos.");
+                return;
+            }
+
+            // 1. Guardar imagen y obtener solo el nombre del archivo final
             String nombreImagen = copiarImagen(imagenSeleccionada);
-            if (nombreImagen == null) return;
+            if (nombreImagen == null) {
+                alerta("Error al procesar y almacenar la imagen seleccionada.");
+                return;
+            }
 
-            // 2. GUARDAR EN BASE DE DATOS (MySQL o SQLite)
-            CargarProductos.insertarProducto(nombre, precio, total, nombreImagen);
+            // 2. GUARDAR EN BASE DE DATOS (Acoplado al motor híbrido usando formato estructurado)
+            // Usamos una estructura de bloque simulada en base al cargador masivo autoincremental
+            String formatoCarga = "====\nNombre: " + nombre + "\nPrecio: " + precio + "\nTotal: " + total + "\nRuta: " + nombreImagen;
+            CargarProductos.guardarProductosBD(formatoCarga);
 
-            // 3. GUARDAR EN ARCHIVO TXT Y LISTA
+            // 3. GUARDAR EN ARCHIVO TXT Y LISTA LOCAL
             Producto p = new Producto(nombre, precio, total, nombreImagen);
             listaProductos.add(p);
             guardarEnTxt(p);
 
             actualizarFooter();
             limpiarFormulario();
-            info("Producto \"" + nombre + "\" agregado y sincronizado.");
+            info("Producto \"" + nombre + "\" agregado y sincronizado de forma exitosa.");
 
         } catch (NumberFormatException e) {
-            alerta("Precio o Cantidad no válidos.");
+            alerta("Precio o Cantidad no válidos. Asegúrate de ingresar números válidos.");
         }
     }
 
@@ -145,7 +165,7 @@ public class Controlador {
             Path destino = carpeta.resolve(nuevoNombre);
 
             Files.copy(origen.toPath(), destino, StandardCopyOption.REPLACE_EXISTING);
-            return nuevoNombre; // Retornamos solo el nombre para la BD
+            return nuevoNombre; // Retornamos solo el nombre limpio para la base de datos
         } catch (IOException e) {
             e.printStackTrace();
             return null;
@@ -173,7 +193,7 @@ public class Controlador {
                 Files.writeString(archivo, contenido + "\n" + bloque + "\n]", StandardOpenOption.TRUNCATE_EXISTING);
             }
         } catch (IOException e) {
-            alerta("Error al actualizar el archivo de texto.");
+            alerta("Error al actualizar el archivo de texto en la carpeta de ventas.");
         }
     }
 
@@ -185,7 +205,7 @@ public class Controlador {
 
         labelTotalProductos.setText("Total: " + total);
         labelStockBajo.setText("Stock Bajo: " + stockBajo);
-        labelValorTotal.setText(String.format("Valor: $%,.0f", valorTotal));
+        labelValorTotal.setText(String.format("Valor: $%,.2f", valorTotal));
     }
 
     private void navegarA(String fxml, Button origen) {
@@ -195,7 +215,8 @@ public class Controlador {
             Stage stage = (Stage) origen.getScene().getWindow();
             stage.setScene(new Scene(root));
         } catch (IOException e) {
-            alerta("Error al cargar vista: " + fxml);
+            alerta("Error crítico al intentar cargar la vista: " + fxml);
+            e.printStackTrace();
         }
     }
 
@@ -205,13 +226,15 @@ public class Controlador {
     }
 
     private void alerta(String msg) {
-        Alert a = new Alert(Alert.AlertType.WARNING, msg);
-        a.showAndWait();
+        Alert alert = new Alert(Alert.AlertType.WARNING, msg);
+        alert.setHeaderText(null);
+        alert.showAndWait();
     }
 
     private void info(String msg) {
-        Alert a = new Alert(Alert.AlertType.INFORMATION, msg);
-        a.showAndWait();
+        Alert alert = new Alert(Alert.AlertType.INFORMATION, msg);
+        alert.setHeaderText(null);
+        alert.showAndWait();
     }
 
     private void cerrarSesion() {
@@ -228,16 +251,17 @@ public class Controlador {
             return resto.substring(1, resto.indexOf("\"", 1));
         } else {
             int fin = 0;
-            while (fin < resto.length() && (Character.isDigit(resto.charAt(fin)) || resto.charAt(fin) == '.')) fin++;
+            while (fin < resto.length() && (Character.isDigit(resto.charAt(fin)) || resto.charAt(fin) == '.' || resto.charAt(fin) == ',')) fin++;
             return resto.substring(0, fin);
         }
     }
 
-    // --- Clase Producto ---
+    // --- Clase Anidada Producto ---
     public static class Producto {
-        private String nombre, rutaImagen;
-        private double precio;
-        private int total;
+        private final String nombre, rutaImagen;
+        private final double precio;
+        private final int total;
+
         public Producto(String n, double p, int t, String img) {
             this.nombre = n; this.precio = p; this.total = t; this.rutaImagen = img;
         }

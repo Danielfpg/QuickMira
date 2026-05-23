@@ -1,9 +1,10 @@
 package com.quickmira.Database;
 
-import com.mongodb.client.MongoCollection;
+import com.mongodb.client.model.Filters;
+import com.mongodb.client.model.Updates;
+import org.bson.types.ObjectId;
 import com.mongodb.client.MongoDatabase;
 import com.mongodb.client.model.Filters;
-import com.mongodb.client.model.UpdateOptions;
 import com.mongodb.client.model.Updates;
 import org.bson.Document;
 
@@ -14,7 +15,7 @@ import java.util.regex.*;
 
 /**
  * Clase encargada de la persistencia y carga masiva de productos.
- * Integra soporte para SQLite, MySQL y MongoDB con sistema de backups.
+ * Integra soporte para SQLite, MySQL y MongoDB con sistema de backups y auditoría por ID.
  */
 public class CargarProductos {
 
@@ -35,253 +36,163 @@ public class CargarProductos {
             return;
         }
 
+        // Estructura uniforme usando 'id' como Llave Primaria Autoincremental
         String sqlSQLite = "CREATE TABLE IF NOT EXISTS producto (" +
-                "id     INTEGER PRIMARY KEY AUTOINCREMENT," +
-                "nombre TEXT    NOT NULL UNIQUE," +
-                "precio REAL," +
-                "total  INTEGER," +
-                "imagen TEXT" +
-                ");";
+                "id INTEGER PRIMARY KEY AUTOINCREMENT, " +
+                "nombre TEXT, precio REAL, total INTEGER, imagen TEXT);";
 
         String sqlMySQL = "CREATE TABLE IF NOT EXISTS producto (" +
-                "id     INT AUTO_INCREMENT PRIMARY KEY," +
-                "nombre VARCHAR(255) NOT NULL UNIQUE," +
-                "precio DOUBLE," +
-                "total  INT," +
-                "imagen VARCHAR(255)" +
-                ");";
+                "id INT AUTO_INCREMENT PRIMARY KEY, " +
+                "nombre VARCHAR(255), precio DOUBLE, total INT, imagen VARCHAR(255));";
 
         String sql = Conexion.isUsarMySQL() ? sqlMySQL : sqlSQLite;
 
         try (Connection con = Conexion.getConexion();
              Statement stmt = con.createStatement()) {
             stmt.execute(sql);
-            System.out.println("✅ Tabla 'producto' lista.");
+            System.out.println("✅ Tabla 'producto' verificada/creada con columna 'id' en SQL.");
         } catch (SQLException e) {
-            System.out.println("❌ Error al crear tabla: " + e.getMessage());
+            System.out.println("❌ Error al crear tabla SQL: " + e.getMessage());
         }
     }
-
     // ═════════════════════════════════════════════════════════════════════════
-    //  ELIMINAR PRODUCTO (CON BACKUP Y LIMPIEZA DE TXT)
+    //  METODO AUXILIAR: RESPALDO DE AUDITORÍA ANTES DE CAMBIOS SQL
     // ═════════════════════════════════════════════════════════════════════════
-    public static void eliminarProducto(String nombre) {
-        // 1. Eliminar del archivo TXT primero
-        eliminarDeArchivo(nombre);
-
-        // 2. Si es MySQL, respaldamos en la colección 'backups' de MongoDB
-        if (Conexion.isUsarMySQL()) {
-            respaldarEnMongo(nombre);
-        }
-
-        // 3. Eliminar de la base de datos activa
-        if (Conexion.isUsarMongo()) {
-            MongoDatabase db = Conexion.getMongoDatabase();
-            if (db != null) {
-                db.getCollection("producto").deleteOne(Filters.eq("nombre", nombre));
-                System.out.println("✅ Producto eliminado de MongoDB.");
-            }
-        } else {
-            String sql = "DELETE FROM producto WHERE nombre = ?";
-            try (Connection con = Conexion.getConexion();
-                 PreparedStatement ps = con.prepareStatement(sql)) {
-                ps.setString(1, nombre);
-                int filas = ps.executeUpdate();
-                if (filas > 0) System.out.println("✅ Producto '" + nombre + "' eliminado de la BD.");
-            } catch (SQLException e) {
-                System.out.println("❌ Error SQL al eliminar: " + e.getMessage());
-            }
-        }
-    }
-
-    /**
-     * Limpia el archivo ventas.txt eliminando el bloque del producto.
-     */
-    private static void eliminarDeArchivo(String nombreProducto) {
-        String rutaArchivo = "venta/ventas.txt";
-        try {
-            Path path = Paths.get(rutaArchivo);
-            if (!Files.exists(path)) return;
-
-            String contenido = Files.readString(path);
-
-            // Regex ultra-flexible para capturar el objeto JSON completo que contenga el nombre
-            // Explicación: Busca '{', luego cualquier cosa que no sea '}' que incluya "nombre" : "valor"
-            String regex = "\\s*\\{[^{}]*?\"nombre\"\\s*:\\s*\"" + Pattern.quote(nombreProducto) + "\"[^{}]*?\\}(,)?";
-
-            Pattern pattern = Pattern.compile(regex, Pattern.DOTALL);
-            Matcher matcher = pattern.matcher(contenido);
-
-            if (matcher.find()) {
-                String nuevoContenido = matcher.replaceFirst("");
-
-                // --- LIMPIEZA DE ESTRUCTURA JSON ---
-                // 1. Si quedó una coma justo antes del cierre del array: [, {..}, ] -> [, {..}]
-                nuevoContenido = nuevoContenido.replaceAll(",\\s*]", "\n]");
-                // 2. Si el array quedó vacío con una coma: [ , ] -> [ ]
-                nuevoContenido = nuevoContenido.replaceAll("\\[\\s*,", "[");
-                // 3. Eliminar posibles comas dobles si estaban en el medio
-                nuevoContenido = nuevoContenido.replaceAll(",\\s*,", ",");
-
-                Files.writeString(path, nuevoContenido);
-                System.out.println("🗑️ '" + nombreProducto + "' borrado físicamente de ventas.txt");
-            } else {
-                System.out.println("⚠️ No se encontró '" + nombreProducto + "' en el archivo de texto.");
-            }
-        } catch (IOException e) {
-            System.err.println("❌ Error al procesar ventas.txt: " + e.getMessage());
-        }
-    }
-
-    private static void respaldarEnMongo(String nombre) {
-        String sql = "SELECT * FROM producto WHERE nombre = ?";
+    private static void crearRespaldoAuditoria(String codigo) {
+        String sql = "SELECT * FROM producto WHERE id = ?"; // O 'codigo' según tu esquema SQL principal
         try {
             Connection con = Conexion.getConexion();
             if (con == null) return;
             try (PreparedStatement ps = con.prepareStatement(sql)) {
-                ps.setString(1, nombre);
+                ps.setInt(1, Integer.parseInt(codigo));
                 try (ResultSet rs = ps.executeQuery()) {
                     if (rs.next()) {
                         MongoDatabase db = Conexion.getMongoDatabase();
                         if (db != null) {
-                            Document backup = new Document("nombre", rs.getString("nombre"))
-                                    .append("precio", rs.getDouble("precio"))
-                                    .append("total", rs.getInt("total"))
+                            Document modificado = new Document("codigo_mysql", rs.getInt("id"))
+                                    .append("nombre_original", rs.getString("nombre"))
+                                    .append("precio_original", rs.getDouble("precio"))
+                                    .append("total_original", rs.getInt("total"))
                                     .append("imagen", rs.getString("imagen"))
-                                    .append("fecha_eliminacion", new java.util.Date())
-                                    .append("origen_sistema", "MySQL_Backup");
-                            db.getCollection("backups").insertOne(backup);
-                            System.out.println("📥 Backup guardado en MongoDB.");
+                                    .append("fecha_modificacion", new java.util.Date())
+                                    .append("accion", "edicion_mysql");
+
+                            db.getCollection("modificados").insertOne(modificado);
+                            System.out.println("📥 Auditoría: Estado anterior guardado en MongoDB.");
                         }
                     }
                 }
             }
         } catch (Exception e) {
-            System.err.println("⚠️ Error creando respaldo: " + e.getMessage());
+            System.err.println("⚠️ Error creando respaldo de auditoría: " + e.getMessage());
         }
     }
-
     // ═════════════════════════════════════════════════════════════════════════
-    //  ACTUALIZAR STOCK e INSERTAR INDIVIDUAL
+    //  EDITAR PRODUCTO (Híbrido Relacional / NoSQL)
     // ═════════════════════════════════════════════════════════════════════════
-    public static void actualizarStock(String nombre, int nuevoTotal) {
+    public static void editarProducto(String id, String nuevoNombre, double nuevoPrecio, int nuevoTotal) {
         if (Conexion.isUsarMongo()) {
             MongoDatabase db = Conexion.getMongoDatabase();
             if (db != null) {
-                db.getCollection("producto").updateOne(
-                        Filters.eq("nombre", nombre),
-                        Updates.set("total", nuevoTotal)
-                );
-            }
-            return;
-        }
-
-        String sql = "UPDATE producto SET total = ? WHERE nombre = ?";
-        try (Connection con = Conexion.getConexion();
-             PreparedStatement ps = con.prepareStatement(sql)) {
-            ps.setInt(1, nuevoTotal);
-            ps.setString(2, nombre);
-            ps.executeUpdate();
-        } catch (SQLException e) {
-            System.out.println("❌ Error al actualizar stock: " + e.getMessage());
-        }
-    }
-
-    public static void insertarProducto(String nombre, double precio, int total, String imagen) {
-        if (Conexion.isUsarMongo()) {
-            MongoDatabase db = Conexion.getMongoDatabase();
-            if (db == null) return;
-            db.getCollection("producto").updateOne(
-                    Filters.eq("nombre", nombre),
-                    Updates.combine(
-                            Updates.setOnInsert("nombre", nombre),
-                            Updates.setOnInsert("precio", precio),
-                            Updates.setOnInsert("total",  total),
-                            Updates.setOnInsert("imagen", imagen)
-                    ),
-                    new UpdateOptions().upsert(true)
-            );
-            return;
-        }
-
-        String sql = Conexion.isUsarMySQL()
-                ? "INSERT IGNORE INTO producto (nombre, precio, total, imagen) VALUES (?, ?, ?, ?)"
-                : "INSERT OR IGNORE INTO producto (nombre, precio, total, imagen) VALUES (?, ?, ?, ?)";
-
-        try (Connection con = Conexion.getConexion();
-             PreparedStatement ps = con.prepareStatement(sql)) {
-            ps.setString(1, nombre);
-            ps.setDouble(2, precio);
-            ps.setInt(3, total);
-            ps.setString(4, imagen);
-            ps.executeUpdate();
-        } catch (SQLException e) {
-            System.out.println("❌ Error SQL al insertar: " + e.getMessage());
-        }
-    }
-
-    // ═════════════════════════════════════════════════════════════════════════
-    //  CARGA MASIVA DESDE TXT
-    // ═════════════════════════════════════════════════════════════════════════
-    public static void cargarDesdeVenta() {
-        crearTablaProducto();
-        String rutaArchivo = "venta/ventas.txt";
-        String contenido;
-
-        try {
-            contenido = Files.readString(Paths.get(rutaArchivo));
-            if (contenido.trim().isEmpty()) return;
-        } catch (IOException e) {
-            System.out.println("❌ Error de lectura: " + e.getMessage());
-            return;
-        }
-
-        contenido = contenido.replaceAll("(\\d+),(\\d{2})", "$1.$2");
-        Pattern pNombre = Pattern.compile("^\\s*:\\s*\"([^\"]+)\"");
-        Pattern pPrecio = Pattern.compile("\"precio\"\\s*:\\s*([\\d.]+)");
-        Pattern pTotal  = Pattern.compile("\"total\"\\s*:\\s*(\\d+)");
-        Pattern pImagen = Pattern.compile("\"imagen\"\\s*:\\s*\"([^\"]+)\"");
-
-        String[] fragmentos = contenido.split("\"nombre\"");
-        int cargados = 0;
-
-        if (Conexion.isUsarMongo()) {
-            MongoDatabase db = Conexion.getMongoDatabase();
-            if (db == null) return;
-            MongoCollection<Document> col = db.getCollection("producto");
-
-            for (int i = 1; i < fragmentos.length; i++) {
-                String f = fragmentos[i];
-                Matcher mNombre = pNombre.matcher(f);
-                Matcher mPrecio = pPrecio.matcher(f);
-                Matcher mTotal  = pTotal.matcher(f);
-                Matcher mImagen = pImagen.matcher(f);
-
-                if (mNombre.find() && mPrecio.find() && mTotal.find()) {
-                    String imagen = "default.png";
-                    if (mImagen.find()) {
-                        String rutaFull = mImagen.group(1).replace("\\\\", "/");
-                        imagen = Paths.get(rutaFull).getFileName().toString();
+                try {
+                    // Validamos si el ID de la tabla es un ObjectId de Mongo válido de 24 caracteres hex
+                    org.bson.conversions.Bson filtro;
+                    if (id != null && id.length() == 24) {
+                        filtro = Filters.eq("_id", new org.bson.types.ObjectId(id));
+                    } else {
+                        filtro = Filters.eq("id", id);
                     }
-                    col.updateOne(
-                            Filters.eq("nombre", mNombre.group(1)),
+
+                    // Respaldamos el estado previo en la colección 'modificados' antes del cambio
+                    Document anterior = db.getCollection("producto").find(filtro).first();
+                    if (anterior != null) {
+                        Document auditoria = new Document("codigo_mysql", id)
+                                .append("nombre_original", anterior.getString("nombre"))
+                                .append("precio_original", anterior.get("precio"))
+                                .append("total_original", anterior.get("total"))
+                                .append("fecha_modificacion", new java.util.Date())
+                                .append("accion", "edicion_mongo");
+                        db.getCollection("modificados").insertOne(auditoria);
+                    }
+
+                    // Actualizamos usando tipos primitivos estándar
+                    db.getCollection("producto").updateOne(
+                            filtro,
                             Updates.combine(
-                                    Updates.setOnInsert("nombre", mNombre.group(1)),
-                                    Updates.setOnInsert("precio", Double.parseDouble(mPrecio.group(1))),
-                                    Updates.setOnInsert("total",  Integer.parseInt(mTotal.group(1))),
-                                    Updates.setOnInsert("imagen", imagen)
-                            ),
-                            new UpdateOptions().upsert(true)
+                                    Updates.set("nombre", nuevoNombre),
+                                    Updates.set("precio", nuevoPrecio),
+                                    Updates.set("total", nuevoTotal)
+                            )
                     );
-                    cargados++;
+                    System.out.println("✅ Producto actualizado con éxito en MongoDB.");
+                } catch (Exception e) {
+                    System.err.println("⚠️ Error al editar en MongoDB: " + e.getMessage());
                 }
             }
             return;
         }
 
-        String sql = Conexion.isUsarMySQL()
-                ? "INSERT IGNORE INTO producto (nombre, precio, total, imagen) VALUES (?, ?, ?, ?)"
-                : "INSERT OR IGNORE INTO producto (nombre, precio, total, imagen) VALUES (?, ?, ?, ?)";
+        // Bloque SQL para MySQL y SQLite
+        crearRespaldoAuditoria(id);
+        String sql = "UPDATE producto SET nombre = ?, precio = ?, total = ? WHERE id = ?";
+        try (Connection con = Conexion.getConexion();
+             PreparedStatement ps = con.prepareStatement(sql)) {
+            ps.setString(1, nuevoNombre);
+            ps.setDouble(2, nuevoPrecio);
+            ps.setInt(3, nuevoTotal);
+            ps.setInt(4, Integer.parseInt(id));
+            ps.executeUpdate();
+            System.out.println("✅ Producto actualizado con éxito en SQL.");
+        } catch (Exception e) {
+            System.err.println("⚠️ Error al editar producto en SQL: " + e.getMessage());
+        }
+    }
+
+    // ═════════════════════════════════════════════════════════════════════════
+    //  RESPALDO DE AUDITORÍA EN MONGO (BUSCA EN SQL POR LA COLUMNA 'id')
+    // ═════════════════════════════════════════════════════════════════════════
+    private static void respaldarModificadoEnMongo(String idString) {
+        String sql = "SELECT * FROM producto WHERE id = ?";
+        try {
+            Connection con = Conexion.getConexion();
+            if (con == null) return;
+            try (PreparedStatement ps = con.prepareStatement(sql)) {
+                ps.setInt(1, Integer.parseInt(idString));
+                try (ResultSet rs = ps.executeQuery()) {
+                    if (rs.next()) {
+                        MongoDatabase db = Conexion.getMongoDatabase();
+                        if (db != null) {
+                            Document modificado = new Document("codigo_mysql", String.valueOf(rs.getInt("id")))
+                                    .append("nombre_original", rs.getString("nombre"))
+                                    .append("precio_original", rs.getDouble("precio"))
+                                    .append("total_original", rs.getInt("total"))
+                                    .append("imagen", rs.getString("imagen"))
+                                    .append("fecha_modificacion", new java.util.Date())
+                                    .append("accion", "edicion_sql");
+
+                            db.getCollection("modificados").insertOne(modificado);
+                            System.out.println("📥 Auditoría: Estado anterior respaldado en Mongo para el ID: " + idString);
+                        }
+                    }
+                }
+            }
+        } catch (Exception e) {
+            System.err.println("⚠️ Error creando respaldo de auditoría: " + e.getMessage());
+        }
+    }
+
+    // ═════════════════════════════════════════════════════════════════════════
+    //  CARGA MASIVA DESDE TXT (OMITE EL ID PARA QUE SEA AUTOINCREMENTAL)
+    // ═════════════════════════════════════════════════════════════════════════
+    public static void guardarProductosBD(String contenido) {
+        String[] fragmentos = contenido.split("====");
+        Pattern pNombre = Pattern.compile("Nombre:\\s*(.*)");
+        Pattern pPrecio = Pattern.compile("Precio:\\s*([0-9.]+)");
+        Pattern pTotal  = Pattern.compile("Total:\\s*([0-9]+)");
+        Pattern pImagen = Pattern.compile("Ruta:\\s*(.*)");
+
+        int cargados = 0;
+        String sql = "INSERT INTO producto (nombre, precio, total, imagen) VALUES (?, ?, ?, ?)";
 
         try (Connection con = Conexion.getConexion()) {
             if (!Conexion.isUsarMySQL()) con.setAutoCommit(false);
@@ -310,8 +221,84 @@ public class CargarProductos {
                 }
             }
             if (!Conexion.isUsarMySQL()) con.commit();
+            System.out.println("📊 Masivo: Se insertaron " + cargados + " registros autoincrementales en SQL.");
         } catch (SQLException e) {
-            System.out.println("❌ Error crítico en carga: " + e.getMessage());
+            System.out.println("❌ Error crítico en carga masiva SQL: " + e.getMessage());
+        }
+    }
+
+    // Simulación del disparador desde vista
+    public static void cargarDesdeVenta() {
+        System.out.println("🔄 Sincronizador de ventas inicializado.");
+    }
+    // ═════════════════════════════════════════════════════════════════════════
+    //  ELIMINAR PRODUCTO (Híbrido Relacional / NoSQL)
+    // ═════════════════════════════════════════════════════════════════════════
+    public static void eliminarProducto(String idProducto) {
+        if (Conexion.isUsarMongo()) {
+            MongoDatabase db = Conexion.getMongoDatabase();
+            if (db != null) {
+                try {
+                    org.bson.conversions.Bson filtro;
+                    if (idProducto != null && idProducto.length() == 24) {
+                        filtro = Filters.eq("_id", new org.bson.types.ObjectId(idProducto));
+                    } else {
+                        filtro = Filters.eq("id", idProducto);
+                    }
+
+                    Document remoto = db.getCollection("producto").find(filtro).first();
+                    if (remoto != null) {
+                        Document backupBorrados = new Document("codigo_mysql", idProducto)
+                                .append("nombre_original", remoto.getString("nombre"))
+                                .append("precio_original", remoto.get("precio"))
+                                .append("total_original", remoto.get("total"))
+                                .append("imagen", remoto.getString("imagen"))
+                                .append("fecha_modificacion", new java.util.Date())
+                                .append("accion", "ELIMINADO_MONGO");
+
+                        db.getCollection("modificados").insertOne(backupBorrados);
+                    }
+
+                    db.getCollection("producto").deleteOne(filtro);
+                    System.out.println("🗑 Documento eliminado físicamente de MongoDB.");
+                } catch (Exception e) {
+                    System.err.println("⚠️ Error al eliminar en MongoDB: " + e.getMessage());
+                }
+            }
+            return;
+        }
+
+        // Bloque SQL original para MySQL y SQLite
+        String querySeleccion = "SELECT * FROM producto WHERE id = ?";
+        String queryEliminar  = "DELETE FROM producto WHERE id = ?";
+        try (Connection con = Conexion.getConexion()) {
+            if (con == null) return;
+            try (PreparedStatement psSel = con.prepareStatement(querySeleccion)) {
+                psSel.setInt(1, Integer.parseInt(idProducto));
+                try (ResultSet rs = psSel.executeQuery()) {
+                    if (rs.next()) {
+                        MongoDatabase db = Conexion.getMongoDatabase();
+                        if (db != null) {
+                            Document backupBorrados = new Document("codigo_mysql", rs.getInt("id"))
+                                    .append("nombre_original", rs.getString("nombre"))
+                                    .append("precio_original", rs.getDouble("precio"))
+                                    .append("total_original", rs.getInt("total"))
+                                    .append("imagen", rs.getString("imagen"))
+                                    .append("fecha_modificacion", new java.util.Date())
+                                    .append("accion", "ELIMINADO_SQL");
+
+                            db.getCollection("modificados").insertOne(backupBorrados);
+                        }
+                    }
+                }
+            }
+            try (PreparedStatement psDel = con.prepareStatement(queryEliminar)) {
+                psDel.setInt(1, Integer.parseInt(idProducto));
+                psDel.executeUpdate();
+                System.out.println("🗑 Producto extraído del stock relacional con éxito.");
+            }
+        } catch (Exception e) {
+            System.err.println("⚠️ Error al eliminar/respaldar producto en SQL: " + e.getMessage());
         }
     }
 }

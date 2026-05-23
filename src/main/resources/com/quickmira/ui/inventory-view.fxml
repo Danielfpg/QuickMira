@@ -175,8 +175,15 @@
                         <Button alignment="BOTTOM_LEFT" mnemonicParsing="false"
                                 onAction="#handleEliminar"
                                 style="-fx-background-color: #e05050;" text="🗑  Eliminar" textFill="WHITE" />
+                        <Button mnemonicParsing="false" onAction="#handleEditar"
+                                style="-fx-background-color: #f39c12;" text="✏  Editar" textFill="WHITE" />
                         <Button mnemonicParsing="false" onAction="#handleRecargar"
                                 style="-fx-background-color: #2271b3;" text="🔄  Recargar" textFill="WHITE" />
+                        <!-- ── NUEVO BOTÓN BACKUP ── -->
+                        <Button fx:id="btnBackup" mnemonicParsing="false" onAction="#handleVerBackup"
+                                style="-fx-background-color: #7b4fa6;" text="🗂  Backup" textFill="WHITE" />
+                        <Button mnemonicParsing="false" onAction="#handleVerModificados"
+                                style="-fx-background-color: #27ae60;" text="📝 Modificados" textFill="WHITE" />
                     </children>
                 </HBox>
                 <TableView fx:id="tablaProductos" prefHeight="219.0" prefWidth="434.0" VBox.vgrow="ALWAYS">

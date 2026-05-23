@@ -12,14 +12,14 @@ import java.sql.SQLException;
  * Gestiona las conexiones a MySQL, SQLite y MongoDB.
  *
  * Modo activo:
- *   0 = SQLite  (por defecto)
- *   1 = MySQL
- *   2 = MongoDB
+ * 0 = SQLite  (por defecto)
+ * 1 = MySQL
+ * 2 = MongoDB
  */
 public class Conexion {
 
     // ── MySQL ────────────────────────────────────────────────────────────────
-    private static final String MYSQL_URL  = "jdbc:mysql://172.30.16.104:3306/quickmira";
+    private static final String MYSQL_URL  = "jdbc:mysql://172.30.16.49:3306/quickmira";
     private static final String MYSQL_USER = "dfparedes11";
     private static final String MYSQL_PASS = "67001411";
 
@@ -28,7 +28,7 @@ public class Conexion {
 
     // ── MongoDB ──────────────────────────────────────────────────────────────
     // ⚠️  Cambia estos valores por la IP/puerto real del servidor de la universidad
-    private static final String MONGO_HOST = "172.30.16.104";   // ← IP del servidor
+    private static final String MONGO_HOST = "172.30.16.49";   // ← IP del servidor
     private static final int    MONGO_PORT = 27017;            // ← Puerto (default 27017)
     private static final String MONGO_DB   = "quickmira";      // ← Nombre de la base de datos
 
@@ -57,6 +57,13 @@ public class Conexion {
             cerrarConexion();
             modoActivo = nuevoModo;
         }
+    }
+
+    /** * NUEVO: Soluciona el error de compilación en el Controlador de Inventario.
+     * Vincula la llamada de 'setModoActivo' directamente con el flujo de 'setModo'.
+     */
+    public static void setModoActivo(int nuevoModo) {
+        setModo(nuevoModo);
     }
 
     /** Compatibilidad hacia atrás: establece MySQL o SQLite. */
@@ -99,7 +106,6 @@ public class Conexion {
      * Retorna null si el modo activo no es MongoDB.
      */
     public static MongoDatabase getMongoDatabase() {
-        // Eliminamos la línea: if (modoActivo != MODO_MONGODB) return null;
         try {
             if (mongoClient == null) {
                 String uri = "mongodb://" + MONGO_HOST + ":" + MONGO_PORT;

@@ -137,7 +137,11 @@
                         <Label alignment="CENTER" prefHeight="17.0" prefWidth="84.0" text="Precio unitario:" textAlignment="CENTER" GridPane.rowIndex="1" />
                         <Label alignment="CENTER" prefHeight="17.0" prefWidth="84.0" text="Total:" textAlignment="CENTER" GridPane.rowIndex="2" />
                         <Label alignment="CENTER" prefHeight="17.0" prefWidth="84.0" textAlignment="CENTER" GridPane.columnIndex="1" />
-                        <TextField fx:id="name" promptText="nombre" GridPane.columnIndex="1" />
+                        <TextField fx:id="name" promptText="Solo letras y espacios" GridPane.columnIndex="1">
+                            <tooltip>
+                                <Tooltip text="Ingrese únicamente texto (sin números)." />
+                            </tooltip>
+                        </TextField>
                         <TextField fx:id="cost" promptText="precio" GridPane.columnIndex="1" GridPane.rowIndex="1" />
                         <TextField fx:id="whole" promptText="total" GridPane.columnIndex="1" GridPane.rowIndex="2" />
                     </children>
