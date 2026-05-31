@@ -456,4 +456,20 @@ public class ControladorInventoryView {
         public String getFecha()          { return fecha; }
         public String getAccion()         { return accion; }
     }
+    @FXML
+    private void handleConectarAPI(javafx.event.ActionEvent event) {
+        // Como este método existe en Controlador.java, vamos a instanciarlo o
+        // simplemente llamar a la lógica de abrir la ventana de la API aquí:
+        try {
+            javafx.fxml.FXMLLoader loader = new javafx.fxml.FXMLLoader(getClass().getResource("/com/quickmira/ui/modulo-api.fxml"));
+            javafx.scene.Parent root = loader.load();
+            javafx.stage.Stage stage = new javafx.stage.Stage();
+            stage.setScene(new javafx.scene.Scene(root));
+            stage.setTitle("Importar Productos desde API Externa");
+            stage.initModality(javafx.stage.Modality.APPLICATION_MODAL);
+            stage.show();
+        } catch (java.io.IOException e) {
+            e.printStackTrace();
+        }
+    }
 }

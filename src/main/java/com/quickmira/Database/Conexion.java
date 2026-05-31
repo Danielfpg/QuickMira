@@ -19,7 +19,7 @@ import java.sql.SQLException;
 public class Conexion {
 
     // ── MySQL ────────────────────────────────────────────────────────────────
-    private static final String MYSQL_URL  = "jdbc:mysql://172.30.16.49:3306/quickmira";
+    private static final String MYSQL_URL  = "jdbc:mysql://172.30.16.238:3306/quickmira";
     private static final String MYSQL_USER = "dfparedes11";
     private static final String MYSQL_PASS = "67001411";
 
@@ -28,7 +28,7 @@ public class Conexion {
 
     // ── MongoDB ──────────────────────────────────────────────────────────────
     // ⚠️  Cambia estos valores por la IP/puerto real del servidor de la universidad
-    private static final String MONGO_HOST = "172.30.16.49";   // ← IP del servidor
+    private static final String MONGO_HOST = "172.30.16.238";   // ← IP del servidor
     private static final int    MONGO_PORT = 27017;            // ← Puerto (default 27017)
     private static final String MONGO_DB   = "quickmira";      // ← Nombre de la base de datos
 

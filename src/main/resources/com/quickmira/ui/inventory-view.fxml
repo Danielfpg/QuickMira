@@ -1,205 +1,74 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
-<?import javafx.geometry.*?>
-<?import javafx.scene.image.*?>
-<?import javafx.scene.text.*?>
-<?import javafx.scene.*?>
+<?import javafx.geometry.Insets?>
 <?import javafx.scene.control.*?>
-<?import java.lang.*?>
 <?import javafx.scene.layout.*?>
+<?import javafx.scene.text.Font?>
 
-<BorderPane maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity"
-            prefHeight="420.0" prefWidth="640.0"
-            xmlns="http://javafx.com/javafx/8"
-            xmlns:fx="http://javafx.com/fxml/1"
-            fx:controller="com.quickmira.Controller.ControladorInventoryView">
+<BorderPane prefHeight="600.0" prefWidth="900.0" style="-fx-background-color: #f4f6f9;" xmlns="http://javafx.com/javafx/8" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.quickmira.Controller.ControladorInventoryView">
 
-    <!-- ── TOP ── -->
     <top>
-        <HBox prefHeight="100.0" prefWidth="200.0" style="-fx-background-color: #2271b3;" BorderPane.alignment="CENTER">
+        <HBox alignment="CENTER_LEFT" prefHeight="60.0" spacing="15.0" style="-fx-background-color: #2271b3; -fx-padding: 10;">
             <children>
-                <HBox prefHeight="100.0" prefWidth="200.0">
-                    <children>
-                        <ImageView fitHeight="109.0" fitWidth="94.0" pickOnBounds="true" preserveRatio="true">
-                            <image>
-                                <Image url="@../images/caja-del-paquete (1).png" />
-                            </image>
-                        </ImageView>
-                        <Label alignment="CENTER" contentDisplay="CENTER" prefHeight="100.0" prefWidth="194.0"
-                               text="QuicMira" textAlignment="CENTER" textFill="WHITE">
-                            <font><Font size="24.0" /></font>
-                        </Label>
-                    </children>
-                </HBox>
-                <Label alignment="CENTER" contentDisplay="CENTER" prefHeight="100.0" prefWidth="194.0"
-                       text="Operador: Daniel" textAlignment="CENTER" textFill="WHITE">
-                    <font><Font size="18.0" /></font>
+                <Label text="Inventario General" textFill="WHITE">
+                    <font>
+                        <Font name="System Bold" size="18.0" />
+                    </font>
                 </Label>
-                <AnchorPane prefHeight="200.0" prefWidth="200.0">
-                    <children>
-                        <ImageView fitHeight="43.0" fitWidth="67.0" layoutX="30.0" layoutY="33.0">
-                            <image>
-                                <Image url="@../images/user-icon-on-transparent-background-free-png.png" />
-                            </image>
-                        </ImageView>
-                        <Button fx:id="Clouse_sesion" layoutX="100.0" layoutY="42.0"
-                                mnemonicParsing="false" text="Cerrar Sesion" />
-                    </children>
-                </AnchorPane>
+                <Region HBox.hgrow="ALWAYS" />
+                <Label fx:id="labelBDActiva" text="Base de Datos Activa" textFill="WHITE" />
+                <ToggleButton fx:id="btnSQLite" text="SQLite" />
+                <ToggleButton fx:id="btnMySQL" text="MySQL" />
+                <ToggleButton fx:id="btnMongoDB" text="MongoDB" />
             </children>
         </HBox>
     </top>
 
-    <!-- ── LEFT ── -->
     <left>
-        <VBox prefHeight="253.0" prefWidth="124.0" BorderPane.alignment="CENTER">
+        <VBox prefWidth="130.0" spacing="10" style="-fx-background-color: #ffffff; -fx-border-color: #dce1e7; -fx-border-width: 0 1 0 0;" BorderPane.alignment="CENTER">
+            <padding><Insets top="20.0" left="5.0" right="5.0"/></padding>
             <children>
-                <GridPane prefHeight="169.0" prefWidth="122.0">
-                    <columnConstraints>
-                        <ColumnConstraints hgrow="SOMETIMES" minWidth="10.0" prefWidth="100.0" />
-                    </columnConstraints>
-                    <rowConstraints>
-                        <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="SOMETIMES" />
-                        <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="SOMETIMES" />
-                        <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="SOMETIMES" />
-                    </rowConstraints>
-                    <children>
-                        <Button fx:id="inventory" alignment="CENTER_RIGHT" contentDisplay="RIGHT"
-                                mnemonicParsing="false" prefHeight="39.0" prefWidth="114.0"
-                                style="-fx-background-color: #15c0a9;" text="inventory">
-                            <graphic>
-                                <ImageView fitHeight="31.0" fitWidth="36.0">
-                                    <image><Image url="@../images/caja-del-paquete.png" /></image>
-                                </ImageView>
-                            </graphic>
-                        </Button>
-                        <Button fx:id="sell" alignment="CENTER_RIGHT" contentDisplay="RIGHT"
-                                mnemonicParsing="false" prefHeight="39.0" prefWidth="114.0"
-                                text="sell" GridPane.rowIndex="1">
-                            <graphic>
-                                <ImageView fitHeight="31.0" fitWidth="36.0">
-                                    <image><Image url="@../images/camara.png" /></image>
-                                </ImageView>
-                            </graphic>
-                        </Button>
-                        <Button fx:id="stadistics" alignment="CENTER_RIGHT" contentDisplay="RIGHT"
-                                mnemonicParsing="false" prefHeight="39.0" prefWidth="114.0"
-                                text="stadistics" GridPane.rowIndex="2">
-                            <graphic>
-                                <ImageView fitHeight="31.0" fitWidth="36.0">
-                                    <image><Image url="@../images/grafico.png" /></image>
-                                </ImageView>
-                            </graphic>
-                        </Button>
-                    </children>
-                </GridPane>
+                <Button fx:id="inventory" alignment="CENTER_LEFT" prefHeight="45.0" prefWidth="120.0" text="Inventory" />
+                <Button fx:id="sell" alignment="CENTER_LEFT" prefHeight="45.0" prefWidth="120.0" text="Sell" />
+                <Button fx:id="stadistics" alignment="CENTER_LEFT" prefHeight="45.0" prefWidth="120.0" text="Stadistics" />
+                <Region VBox.vgrow="ALWAYS" />
+                <Button fx:id="Clouse_sesion" alignment="CENTER" prefHeight="30.0" prefWidth="120.0" text="Cerrar Sesión" />
             </children>
         </VBox>
     </left>
 
-    <!-- ── BOTTOM ── -->
-    <bottom>
-        <VBox BorderPane.alignment="CENTER">
-            <!-- Fila 1: selector de BD -->
-            <children>
-                <HBox prefHeight="36.0" prefWidth="640.0" alignment="CENTER_LEFT"
-                      style="-fx-background-color: #f0f0f0; -fx-padding: 4 8 4 8; -fx-spacing: 8;">
-                    <children>
-                        <Label text="Base de datos:" style="-fx-font-weight: bold;" />
-                        <!-- ToggleButton SQLite -->
-                        <ToggleButton fx:id="btnSQLite"
-                                      mnemonicParsing="false"
-                                      text="🗄  SQLite"
-                                      style="-fx-background-color: #15c0a9; -fx-text-fill: white; -fx-font-weight: bold;" />
-                        <!-- ToggleButton MySQL -->
-                        <ToggleButton fx:id="btnMySQL"
-                                      mnemonicParsing="false"
-                                      text="🐬  MySQL"
-                                      style="-fx-background-color: #cccccc; -fx-text-fill: #333333;" />
-                        <!-- ToggleButton MongoDB -->
-                        <ToggleButton fx:id="btnMongoDB"
-                                      mnemonicParsing="false"
-                                      text="🍃  MongoDB"
-                                      style="-fx-background-color: #cccccc; -fx-text-fill: #333333;" />
-                        <!-- Label que muestra BD activa -->
-                        <Label fx:id="labelBDActiva"
-                               text="BD activa: SQLite"
-                               style="-fx-text-fill: #555555; -fx-font-style: italic;" />
-                    </children>
-                </HBox>
-
-                <!-- Fila 2: labels de totales -->
-                <HBox prefHeight="47.0" prefWidth="640.0" BorderPane.alignment="CENTER">
-                    <children>
-                        <GridPane prefHeight="47.0" prefWidth="311.0">
-                            <columnConstraints>
-                                <ColumnConstraints hgrow="SOMETIMES" minWidth="10.0" prefWidth="100.0" />
-                                <ColumnConstraints hgrow="SOMETIMES" minWidth="10.0" prefWidth="100.0" />
-                            </columnConstraints>
-                            <rowConstraints>
-                                <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="SOMETIMES" />
-                            </rowConstraints>
-                            <children>
-                                <Label fx:id="labelTotalProductos" text="Total de productos: –" />
-                                <Label fx:id="labelStockBajo" prefHeight="17.0" prefWidth="141.0"
-                                       text="Productos en stock bajo: –" GridPane.columnIndex="1" />
-                            </children>
-                        </GridPane>
-                        <GridPane prefHeight="42.0" prefWidth="208.0">
-                            <columnConstraints>
-                                <ColumnConstraints hgrow="SOMETIMES" minWidth="10.0" prefWidth="100.0" />
-                            </columnConstraints>
-                            <rowConstraints>
-                                <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="SOMETIMES" />
-                            </rowConstraints>
-                            <children>
-                                <Label fx:id="labelValorTotal" prefHeight="17.0" prefWidth="196.0"
-                                       text="Valor total inventario: –" />
-                            </children>
-                        </GridPane>
-                    </children>
-                </HBox>
-            </children>
-        </VBox>
-    </bottom>
-
-    <!-- ── CENTER ── -->
     <center>
-        <VBox prefHeight="200.0" prefWidth="100.0" BorderPane.alignment="CENTER">
+        <VBox spacing="10.0" style="-fx-padding: 15;">
             <children>
-                <HBox prefHeight="27.0" prefWidth="476.0" alignment="CENTER_LEFT" spacing="6.0">
+                <HBox spacing="10.0">
                     <children>
-                        <Label style="-fx-font-weight: bold; -fx-font-size: 14;"
-                               text="Inventario de productos" />
-                        <Region HBox.hgrow="ALWAYS" />
-                        <Button alignment="BOTTOM_LEFT" mnemonicParsing="false"
-                                onAction="#handleEliminar"
-                                style="-fx-background-color: #e05050;" text="🗑  Eliminar" textFill="WHITE" />
-                        <Button mnemonicParsing="false" onAction="#handleEditar"
-                                style="-fx-background-color: #f39c12;" text="✏  Editar" textFill="WHITE" />
-                        <Button mnemonicParsing="false" onAction="#handleRecargar"
-                                style="-fx-background-color: #2271b3;" text="🔄  Recargar" textFill="WHITE" />
-                        <!-- ── NUEVO BOTÓN BACKUP ── -->
-                        <Button fx:id="btnBackup" mnemonicParsing="false" onAction="#handleVerBackup"
-                                style="-fx-background-color: #7b4fa6;" text="🗂  Backup" textFill="WHITE" />
-                        <Button mnemonicParsing="false" onAction="#handleVerModificados"
-                                style="-fx-background-color: #27ae60;" text="📝 Modificados" textFill="WHITE" />
+                        <Button text="Editar Producto" onAction="#handleEditar" style="-fx-background-color: #f39c12; -fx-text-fill: white;" />
+                        <Button text="Eliminar Producto" onAction="#handleEliminar" style="-fx-background-color: #e74c3c; -fx-text-fill: white;" />
+                        <Button text="Recargar" onAction="#handleRecargar" style="-fx-background-color: #3498db; -fx-text-fill: white;" />
+                        <Button fx:id="btnBackup" text="Ver Backups" onAction="#handleVerBackup" style="-fx-background-color: #9b59b6; -fx-text-fill: white;" />
                     </children>
                 </HBox>
-                <TableView fx:id="tablaProductos" prefHeight="219.0" prefWidth="434.0" VBox.vgrow="ALWAYS">
+
+                <TableView fx:id="tablaProductos" VBox.vgrow="ALWAYS">
                     <columns>
-                        <TableColumn fx:id="colCodigo"   prefWidth="75.0"  text="Codigo" />
-                        <TableColumn fx:id="colNombre"   prefWidth="75.0"  text="Nombre" />
-                        <TableColumn fx:id="colPrecio"   prefWidth="75.0"  text="Precio" />
-                        <TableColumn fx:id="colCantidad" prefWidth="75.0"  text="Cantidad" />
-                        <TableColumn fx:id="colImagen"   prefWidth="174.0" text="Ruta imagen" />
+                        <TableColumn fx:id="colCodigo" prefWidth="80.0" text="ID / Código" />
+                        <TableColumn fx:id="colNombre" prefWidth="200.0" text="Nombre del Producto" />
+                        <TableColumn fx:id="colPrecio" prefWidth="120.0" text="Precio Unitario" />
+                        <TableColumn fx:id="colCantidad" prefWidth="100.0" text="Stock" />
+                        <TableColumn fx:id="colImagen" prefWidth="150.0" text="Ruta Imagen" />
                     </columns>
-                    <placeholder>
-                        <Label text="Sin productos registrados" />
-                    </placeholder>
                 </TableView>
             </children>
         </VBox>
     </center>
 
+    <bottom>
+        <HBox spacing="40" style="-fx-padding: 10; -fx-background-color: #eef1f5; -fx-border-color: #dce1e7; -fx-border-width: 1 0 0 0;">
+            <children>
+                <Label fx:id="labelTotalProductos" text="Total de productos: -" />
+                <Label fx:id="labelStockBajo" text="Productos en stock bajo: -" />
+                <Label fx:id="labelValorTotal" text="Valor total inventario: -" />
+            </children>
+        </HBox>
+    </bottom>
 </BorderPane>

@@ -43,6 +43,11 @@
                         <Button fx:id="Clouse_sesion" layoutX="100.0" layoutY="42.0" mnemonicParsing="false" text="cerrar Sesion" />
                     </children>
                 </AnchorPane>
+                <Button fx:id="btnApiImport" mnemonicParsing="false" onAction="#handleAbrirApiImport" prefHeight="42.0" prefWidth="151.0" style="-fx-background-color: #001f5b;" text="Importar API" textFill="WHITE">
+                    <font>
+                        <Font name="Calibri Bold" size="14.0" />
+                    </font>
+                </Button>
             </children>
         </HBox>
     </top>
@@ -91,11 +96,11 @@
             </children></VBox>
     </left>
     <bottom>
-        <Label fx:id="labelTotalProductos" text="Total de productos: –" />
+        <Label fx:id="labelTotalProductos" text="Total de productos: ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œ" />
         <Label fx:id="labelStockBajo" prefHeight="17.0" prefWidth="141.0"
-               text="Productos en stock bajo: –" GridPane.columnIndex="1" />
+               text="Productos en stock bajo: ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œ" GridPane.columnIndex="1" />
         <Label fx:id="labelValorTotal" prefHeight="17.0" prefWidth="196.0"
-               text="Valor total inventario: –" />
+               text="Valor total inventario: ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œ" />
     </bottom>
     <center>
         <AnchorPane prefHeight="200.0" prefWidth="200.0" BorderPane.alignment="CENTER">
@@ -139,7 +144,7 @@
                         <Label alignment="CENTER" prefHeight="17.0" prefWidth="84.0" textAlignment="CENTER" GridPane.columnIndex="1" />
                         <TextField fx:id="name" promptText="Solo letras y espacios" GridPane.columnIndex="1">
                             <tooltip>
-                                <Tooltip text="Ingrese únicamente texto (sin números)." />
+                                <Tooltip text="Ingrese ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Âºnicamente texto (sin nÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Âºmeros)." />
                             </tooltip>
                         </TextField>
                         <TextField fx:id="cost" promptText="precio" GridPane.columnIndex="1" GridPane.rowIndex="1" />

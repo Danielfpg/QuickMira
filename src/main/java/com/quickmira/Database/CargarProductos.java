@@ -191,10 +191,45 @@ public class CargarProductos {
         Pattern pTotal  = Pattern.compile("Total:\\s*([0-9]+)");
         Pattern pImagen = Pattern.compile("Ruta:\\s*(.*)");
 
+        // 🌟 1. SALVAVIDAS PARA MONGO DONGODB 🌟
+        if (Conexion.isUsarMongo()) {
+            MongoDatabase db = Conexion.getMongoDatabase();
+            if (db != null) {
+                int cargados = 0;
+                for (int i = 1; i < fragmentos.length; i++) {
+                    String f = fragmentos[i];
+                    Matcher mNombre = pNombre.matcher(f);
+                    Matcher mPrecio = pPrecio.matcher(f);
+                    Matcher mTotal  = pTotal.matcher(f);
+                    Matcher mImagen = pImagen.matcher(f);
+
+                    if (mNombre.find() && mPrecio.find() && mTotal.find()) {
+                        String imagen = mImagen.find() ? Paths.get(mImagen.group(1).replace("\\\\", "/")).getFileName().toString() : "default.png";
+
+                        Document doc = new Document("nombre", mNombre.group(1))
+                                .append("precio", Double.parseDouble(mPrecio.group(1)))
+                                .append("total", Integer.parseInt(mTotal.group(1)))
+                                .append("imagen", imagen);
+
+                        db.getCollection("producto").insertOne(doc);
+                        cargados++;
+                    }
+                }
+                System.out.println("📊 Masivo: Se insertaron " + cargados + " documentos en MongoDB.");
+            }
+            return; // Salimos para que no toque el código SQL
+        }
+
+        // 🌟 2. PROTECCIÓN PARA SQL (Por si acaso la conexión falla) 🌟
         int cargados = 0;
         String sql = "INSERT INTO producto (nombre, precio, total, imagen) VALUES (?, ?, ?, ?)";
 
         try (Connection con = Conexion.getConexion()) {
+            if (con == null) {
+                System.err.println("❌ No se pudo realizar la carga masiva: La conexión SQL es null.");
+                return;
+            }
+
             if (!Conexion.isUsarMySQL()) con.setAutoCommit(false);
 
             try (PreparedStatement ps = con.prepareStatement(sql)) {
