@@ -102,7 +102,7 @@ Para conectarte a tu propio servidor de MySQL o MongoDB:
 
 ## Autor
 
-**Daniel Paredes** — [@Danielfpg](https://github.com/Danielfpg)
+**Daniel Gonzalez** — [@Danielfpg](https://github.com/Danielfpg)
 
 ## Licencia
 
