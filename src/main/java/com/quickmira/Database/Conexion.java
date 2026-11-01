@@ -32,7 +32,6 @@ public class Conexion {
     private static int MONGO_PORT;
     private static String MONGO_DB;
 
-    // SQLite suele ser local y relativo a la app, puede quedarse como constante
     private static final String SQLITE_URL = "jdbc:sqlite:quicmira2.db";
 
     // ── Carga de configuración ───────────────────────────────────────────────
