@@ -4,12 +4,17 @@ import com.mongodb.client.MongoClient;
 import com.mongodb.client.MongoClients;
 import com.mongodb.client.MongoDatabase;
 
+import java.io.FileInputStream;
+import java.io.IOException;
+import java.io.InputStream;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
+import java.util.Properties;
 
 /**
  * Gestiona las conexiones a MySQL, SQLite y MongoDB.
+ * Las credenciales se cargan de forma segura desde db.properties.
  *
  * Modo activo:
  * 0 = SQLite  (por defecto)
@@ -18,19 +23,38 @@ import java.sql.SQLException;
  */
 public class Conexion {
 
-    // ── MySQL ────────────────────────────────────────────────────────────────
-    private static final String MYSQL_URL  = "jdbc:mysql://172.30.16.238:3306/quickmira";
-    private static final String MYSQL_USER = "dfparedes11";
-    private static final String MYSQL_PASS = "67001411";
+    // ── Credenciales (Cargadas dinámicamente) ────────────────────────────────
+    private static String MYSQL_URL;
+    private static String MYSQL_USER;
+    private static String MYSQL_PASS;
+    
+    private static String MONGO_HOST;
+    private static int MONGO_PORT;
+    private static String MONGO_DB;
 
-    // ── SQLite ───────────────────────────────────────────────────────────────
+    // SQLite suele ser local y relativo a la app, puede quedarse como constante
     private static final String SQLITE_URL = "jdbc:sqlite:quicmira2.db";
 
-    // ── MongoDB ──────────────────────────────────────────────────────────────
-    // ⚠️  Cambia estos valores por la IP/puerto real del servidor de la universidad
-    private static final String MONGO_HOST = "172.30.16.238";   // ← IP del servidor
-    private static final int    MONGO_PORT = 27017;            // ← Puerto (default 27017)
-    private static final String MONGO_DB   = "quickmira";      // ← Nombre de la base de datos
+    // ── Carga de configuración ───────────────────────────────────────────────
+    static {
+        Properties props = new Properties();
+        try (InputStream input = new FileInputStream("db.properties")) {
+            props.load(input);
+            
+            MYSQL_URL  = props.getProperty("mysql.url");
+            MYSQL_USER = props.getProperty("mysql.user");
+            MYSQL_PASS = props.getProperty("mysql.pass");
+            
+            MONGO_HOST = props.getProperty("mongo.host");
+            MONGO_PORT = Integer.parseInt(props.getProperty("mongo.port", "27017"));
+            MONGO_DB   = props.getProperty("mongo.database");
+            
+        } catch (IOException e) {
+            System.err.println("⚠️ Advertencia: No se encontró el archivo db.properties en la raíz del proyecto. Las conexiones a MySQL/MongoDB fallarán.");
+        } catch (NumberFormatException e) {
+            System.err.println("⚠️ Advertencia: El puerto de MongoDB en db.properties no es un número válido.");
+        }
+    }
 
     // ── Estado ───────────────────────────────────────────────────────────────
     public static final int MODO_SQLITE  = 0;
@@ -43,7 +67,7 @@ public class Conexion {
     private static Connection jdbcConnection = null;
 
     // Conexión MongoDB
-    private static MongoClient   mongoClient   = null;
+    private static MongoClient    mongoClient   = null;
     private static MongoDatabase mongoDatabase = null;
 
     // ── Getters de modo ──────────────────────────────────────────────────────
@@ -59,9 +83,7 @@ public class Conexion {
         }
     }
 
-    /** * NUEVO: Soluciona el error de compilación en el Controlador de Inventario.
-     * Vincula la llamada de 'setModoActivo' directamente con el flujo de 'setModo'.
-     */
+    /** Vincula la llamada de 'setModoActivo' directamente con el flujo de 'setModo'. */
     public static void setModoActivo(int nuevoModo) {
         setModo(nuevoModo);
     }
@@ -72,10 +94,6 @@ public class Conexion {
     }
 
     // ── JDBC (MySQL / SQLite) ────────────────────────────────────────────────
-    /**
-     * Devuelve una Connection JDBC activa (MySQL o SQLite).
-     * Retorna null si el modo activo es MongoDB.
-     */
     public static Connection getConexion() {
         if (modoActivo == MODO_MONGODB) return null;
 
@@ -101,17 +119,13 @@ public class Conexion {
     }
 
     // ── MongoDB ──────────────────────────────────────────────────────────────
-    /**
-     * Devuelve el MongoDatabase activo.
-     * Retorna null si el modo activo no es MongoDB.
-     */
     public static MongoDatabase getMongoDatabase() {
         try {
             if (mongoClient == null) {
                 String uri = "mongodb://" + MONGO_HOST + ":" + MONGO_PORT;
                 mongoClient   = MongoClients.create(uri);
                 mongoDatabase = mongoClient.getDatabase(MONGO_DB);
-                System.out.println("✅ Conexión establecida con MongoDB para operaciones internas");
+                System.out.println("✅ Conexión establecida con MongoDB");
             }
         } catch (Exception e) {
             System.err.println("❌ Error al conectar con MongoDB: " + e.getMessage());
@@ -121,7 +135,6 @@ public class Conexion {
 
     // ── Cierre ───────────────────────────────────────────────────────────────
     public static void cerrarConexion() {
-        // Cerrar JDBC
         try {
             if (jdbcConnection != null && !jdbcConnection.isClosed()) {
                 jdbcConnection.close();
@@ -133,7 +146,6 @@ public class Conexion {
             jdbcConnection = null;
         }
 
-        // Cerrar MongoDB
         try {
             if (mongoClient != null) {
                 mongoClient.close();
