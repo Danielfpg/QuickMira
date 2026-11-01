@@ -1,0 +1,13 @@
+# Archivo de ejemplo para la configuración de bases de datos
+# Renombra este archivo a 'db.properties' e ingresa tus credenciales reales.
+# IMPORTANTE: No subas el archivo 'db.properties' final al repositorio.
+
+# Configuración MySQL
+mysql.url=jdbc:mysql://127.0.0.1:3306/quickmira
+mysql.user=tu_usuario
+mysql.pass=tu_contraseña
+
+# Configuración MongoDB
+mongo.host=127.0.0.1
+mongo.port=27017
+mongo.database=quickmira
